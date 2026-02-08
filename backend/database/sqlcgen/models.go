@@ -17,6 +17,15 @@ type Event struct {
 	SentAt     pgtype.Timestamptz
 }
 
+type Merchant struct {
+	ID           pgtype.UUID
+	Email        string
+	PasswordHash string
+	Name         string
+	CreatedAt    pgtype.Timestamptz
+	UpdatedAt    pgtype.Timestamptz
+}
+
 type SchemaMigration struct {
 	Version string
 }

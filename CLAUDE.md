@@ -143,3 +143,6 @@ Routes are defined as a typed dictionary in `src/routes.tsx`. Add new pages ther
 - Prefer flexbox for layout. Explicit `flex-row` or `flex-col` every time you use `flex`. Use `gap-` to space elements.
 - Extract custom hooks when component logic becomes complex
 - Avoid useEffect for triggering actions; prefer direct callbacks
+
+# Naming
+Always use ___ID, never ___Id.

@@ -4,11 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
+	"billbo.com/backend/api/auth"
 	"billbo.com/backend/api/ingest"
 	"billbo.com/backend/database"
 	"billbo.com/backend/database/sqlcgen"
@@ -29,12 +31,14 @@ func main() {
 
 	go OnSignal(cancel, logger)
 
-	// Database
-	databaseURL := os.Getenv("DATABASE_URL")
-	if databaseURL == "" {
-		logger.Fatal("DATABASE_URL environment variable is required")
+	// Config
+	cfg, err := NewConfig(ctx)
+	if err != nil {
+		logger.Fatal("NewConfig", zap.Error(err))
 	}
-	pool, err := database.NewPostgresPool(databaseURL)
+
+	// Database
+	pool, err := database.NewPostgresPool(cfg.DatabaseURL)
 	if err != nil {
 		logger.Fatal("database.NewPostgresPool", zap.Error(err))
 	}
@@ -50,16 +54,21 @@ func main() {
 	// API
 	v1 := e.Group("/api/v1")
 
+	// Auth API
+	authHandler := auth.NewAuthHandler(logger, queries, []byte(cfg.JWTSecret))
+	authHandler.Routes(v1.Group("/auth"))
+
 	// Ingest API
 	eventHandler := ingest.NewEventHandler(logger, queries)
-	eventHandler.Routes(v1.Group("/events"))
+	eventsGroup := v1.Group("/events", auth.JWTMiddleware([]byte(cfg.JWTSecret)))
+	eventHandler.Routes(eventsGroup)
 
 	// Start server
 	errGrp, ctx := errgroup.WithContext(ctx)
 
 	errGrp.Go(func() error {
 		err := e.Start("localhost:8080")
-		if err != nil {
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			return fmt.Errorf("e.Start: %w", err)
 		}
 		return nil
