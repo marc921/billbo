@@ -71,6 +71,21 @@ CREATE TABLE public.schema_migrations (
 
 
 --
+-- Name: skus; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.skus (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    merchant_id uuid NOT NULL,
+    name text NOT NULL,
+    unit text,
+    price_per_unit double precision NOT NULL,
+    revoked_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
 -- Name: api_keys api_keys_key_hash_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -119,6 +134,14 @@ ALTER TABLE ONLY public.schema_migrations
 
 
 --
+-- Name: skus skus_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.skus
+    ADD CONSTRAINT skus_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: api_keys api_keys_merchant_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -135,6 +158,22 @@ ALTER TABLE ONLY public.events
 
 
 --
+-- Name: events events_sku_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.events
+    ADD CONSTRAINT events_sku_id_fkey FOREIGN KEY (sku_id) REFERENCES public.skus(id);
+
+
+--
+-- Name: skus skus_merchant_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.skus
+    ADD CONSTRAINT skus_merchant_id_fkey FOREIGN KEY (merchant_id) REFERENCES public.merchants(id);
+
+
+--
 -- PostgreSQL database dump complete
 --
 
@@ -147,4 +186,5 @@ ALTER TABLE ONLY public.events
 INSERT INTO public.schema_migrations (version) VALUES
     ('20260208000000'),
     ('20260208010000'),
-    ('20260208020000');
+    ('20260208020000'),
+    ('20260208030000');

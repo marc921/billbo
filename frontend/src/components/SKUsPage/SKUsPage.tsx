@@ -1,34 +1,34 @@
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { type ColumnDef } from "@tanstack/react-table";
-import {
-  apiKeysApi,
-  type APIKey,
-  type CreateAPIKeyResponse,
-} from "@/api/apiKeys";
-import { useListAPIKeys } from "@/queries/useListAPIKeys";
+import { skusApi, type SKU } from "@/api/skus";
+import { useListSKUs } from "@/queries/useListSKUs";
 import { DataTable } from "@/components/DataTable";
 import { formatDate } from "@/lib/formatDate";
 
-export function APIKeysPage() {
-  const { data: keys, isPending, error } = useListAPIKeys();
+export function SKUsPage() {
+  const { data: skuList, isPending, error } = useListSKUs();
   const queryClient = useQueryClient();
   const [name, setName] = useState("");
+  const [unit, setUnit] = useState("");
+  const [pricePerUnit, setPricePerUnit] = useState("");
   const [isCreating, setIsCreating] = useState(false);
-  const [createdKey, setCreatedKey] = useState<CreateAPIKeyResponse | null>(
-    null,
-  );
   const [revokingID, setRevokingID] = useState<string | null>(null);
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
-    if (!name.trim()) return;
+    if (!name.trim() || !pricePerUnit) return;
     setIsCreating(true);
     try {
-      const result = await apiKeysApi.create({ name: name.trim() });
-      setCreatedKey(result);
+      await skusApi.create({
+        name: name.trim(),
+        unit: unit.trim() || undefined,
+        price_per_unit: parseFloat(pricePerUnit),
+      });
       setName("");
-      await queryClient.invalidateQueries({ queryKey: ["api-keys"] });
+      setUnit("");
+      setPricePerUnit("");
+      await queryClient.invalidateQueries({ queryKey: ["skus"] });
     } finally {
       setIsCreating(false);
     }
@@ -37,8 +37,8 @@ export function APIKeysPage() {
   async function handleRevoke(id: string) {
     setRevokingID(id);
     try {
-      await apiKeysApi.revoke(id);
-      await queryClient.invalidateQueries({ queryKey: ["api-keys"] });
+      await skusApi.revoke(id);
+      await queryClient.invalidateQueries({ queryKey: ["skus"] });
     } finally {
       setRevokingID(null);
     }
@@ -46,21 +46,46 @@ export function APIKeysPage() {
 
   return (
     <div className="p-6">
-      <h1 className="text-2xl font-semibold mb-4">API Keys</h1>
+      <h1 className="text-2xl font-semibold mb-4">SKUs</h1>
 
       <form
         onSubmit={handleCreate}
         className="flex flex-row items-end gap-3 mb-6"
       >
         <label className="flex flex-col gap-1">
-          <span className="text-sm font-medium text-gray-700">Key name</span>
+          <span className="text-sm font-medium text-gray-700">Name</span>
           <input
             type="text"
             required
             value={name}
             onChange={(e) => setName(e.target.value)}
             className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            placeholder="e.g. Production"
+            placeholder="e.g. Claude Opus 4.6 Input Tokens"
+          />
+        </label>
+        <label className="flex flex-col gap-1">
+          <span className="text-sm font-medium text-gray-700">Unit</span>
+          <input
+            type="text"
+            value={unit}
+            onChange={(e) => setUnit(e.target.value)}
+            className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            placeholder="e.g. LLM token"
+          />
+        </label>
+        <label className="flex flex-col gap-1">
+          <span className="text-sm font-medium text-gray-700">
+            Price per unit
+          </span>
+          <input
+            type="number"
+            required
+            min="0"
+            step="any"
+            value={pricePerUnit}
+            onChange={(e) => setPricePerUnit(e.target.value)}
+            className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            placeholder="e.g. 0.00001"
           />
         </label>
         <button
@@ -68,37 +93,20 @@ export function APIKeysPage() {
           disabled={isCreating}
           className="bg-blue-600 text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
         >
-          {isCreating ? "Creating..." : "Create key"}
+          {isCreating ? "Creating..." : "Create SKU"}
         </button>
       </form>
 
-      {createdKey && (
-        <div className="mb-6 p-4 rounded-md bg-green-50 border border-green-200">
-          <p className="text-sm font-medium text-green-800 mb-2">
-            API key created. Copy it now — you won't be able to see it again.
-          </p>
-          <code className="block text-sm font-mono bg-white px-3 py-2 rounded border border-green-200 select-all">
-            {createdKey.key}
-          </code>
-          <button
-            onClick={() => setCreatedKey(null)}
-            className="mt-2 text-sm text-green-700 hover:underline"
-          >
-            Dismiss
-          </button>
-        </div>
-      )}
-
-      {isPending && <p className="text-gray-500">Loading API keys...</p>}
+      {isPending && <p className="text-gray-500">Loading SKUs...</p>}
       {error && (
-        <p className="text-red-600">Failed to load API keys: {error.message}</p>
+        <p className="text-red-600">Failed to load SKUs: {error.message}</p>
       )}
-      {keys && keys.length === 0 && (
-        <p className="text-gray-500">No API keys yet.</p>
+      {skuList && skuList.length === 0 && (
+        <p className="text-gray-500">No SKUs yet.</p>
       )}
-      {keys && keys.length > 0 && (
+      {skuList && skuList.length > 0 && (
         <DataTable
-          data={keys}
+          data={skuList}
           columns={
             [
               {
@@ -106,13 +114,13 @@ export function APIKeysPage() {
                 header: "Name",
               },
               {
-                accessorKey: "KeyPrefix",
-                header: "Key",
-                cell: (info) => (
-                  <span className="font-mono text-xs">
-                    {info.getValue<string>()}...
-                  </span>
-                ),
+                accessorKey: "Unit",
+                header: "Unit",
+                cell: (info) => info.getValue<string | null>() ?? "—",
+              },
+              {
+                accessorKey: "PricePerUnit",
+                header: "Price per unit",
               },
               {
                 accessorKey: "CreatedAt",
@@ -147,7 +155,7 @@ export function APIKeysPage() {
                     </button>
                   ),
               },
-            ] satisfies ColumnDef<APIKey, unknown>[]
+            ] satisfies ColumnDef<SKU, unknown>[]
           }
         />
       )}

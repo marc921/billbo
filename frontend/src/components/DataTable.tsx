@@ -12,10 +12,13 @@ import {
 type DataTableProps<T> = {
   data: T[];
   columns: ColumnDef<T, unknown>[];
+  initialSorting?: SortingState;
+  rowClassName?: (row: T) => string | undefined;
+  rowTitle?: (row: T) => string | undefined;
 };
 
-export function DataTable<T>({ data, columns }: DataTableProps<T>) {
-  const [sorting, setSorting] = useState<SortingState>([]);
+export function DataTable<T>({ data, columns, initialSorting, rowClassName, rowTitle }: DataTableProps<T>) {
+  const [sorting, setSorting] = useState<SortingState>(initialSorting ?? []);
   const [globalFilter, setGlobalFilter] = useState("");
 
   const table = useReactTable({
@@ -69,15 +72,26 @@ export function DataTable<T>({ data, columns }: DataTableProps<T>) {
           ))}
         </thead>
         <tbody>
-          {table.getRowModel().rows.map((row) => (
-            <tr key={row.id} className="border-b border-gray-100">
-              {row.getVisibleCells().map((cell) => (
-                <td key={cell.id} className="py-2 pr-4">
-                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                </td>
-              ))}
-            </tr>
-          ))}
+          {table.getRowModel().rows.map((row) => {
+            const title = rowTitle?.(row.original);
+            return (
+              <tr
+                key={row.id}
+                className={`border-b border-gray-100 ${title ? "group/row relative" : ""} ${rowClassName?.(row.original) ?? ""}`}
+              >
+                {row.getVisibleCells().map((cell, cellIndex) => (
+                  <td key={cell.id} className="py-2 pr-4">
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    {title && cellIndex === 0 && (
+                      <span className="pointer-events-none absolute left-0 -top-8 z-10 hidden rounded bg-gray-800 px-2 py-1 text-xs text-white whitespace-nowrap group-hover/row:block">
+                        {title}
+                      </span>
+                    )}
+                  </td>
+                ))}
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>

@@ -1,0 +1,120 @@
+package skus
+
+import (
+	"fmt"
+	"net/http"
+
+	"billbo.com/backend/api/dashboard/auth"
+	"billbo.com/backend/database/sqlcgen"
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/labstack/echo/v4"
+	"go.uber.org/zap"
+)
+
+type SKUHandler struct {
+	logger  *zap.Logger
+	queries *sqlcgen.Queries
+}
+
+// TODO: handle currencies: per sku? per merchant? per customer?
+func NewSKUHandler(
+	logger *zap.Logger,
+	queries *sqlcgen.Queries,
+) *SKUHandler {
+	return &SKUHandler{
+		logger: logger.With(
+			zap.String("api", "dashboard"),
+			zap.String("handler", "skus"),
+		),
+		queries: queries,
+	}
+}
+
+type CreateSKURequest struct {
+	Name         string  `json:"name"`
+	Unit         *string `json:"unit"`
+	PricePerUnit float64 `json:"price_per_unit"`
+}
+
+func (h *SKUHandler) CreateSKU(c echo.Context) error {
+	merchantID, err := auth.MerchantID(c)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusUnauthorized, "invalid merchant ID in token").
+			WithInternal(fmt.Errorf("CreateSKU: %w", err))
+	}
+
+	var req CreateSKURequest
+	if err := c.Bind(&req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "invalid request").
+			WithInternal(fmt.Errorf("c.Bind: %w", err))
+	}
+
+	// TODO: validate using go-validator
+	if req.Name == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, "name is required")
+	}
+	if req.PricePerUnit <= 0 {
+		return echo.NewHTTPError(http.StatusBadRequest, "price_per_unit must be positive")
+	}
+
+	var unit pgtype.Text
+	if req.Unit != nil && *req.Unit != "" {
+		unit = pgtype.Text{String: *req.Unit, Valid: true}
+	}
+
+	row, err := h.queries.CreateSKU(c.Request().Context(), sqlcgen.CreateSKUParams{
+		MerchantID:   pgtype.UUID{Bytes: merchantID, Valid: true},
+		Name:         req.Name,
+		Unit:         unit,
+		PricePerUnit: req.PricePerUnit,
+	})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to create SKU").
+			WithInternal(fmt.Errorf("queries.CreateSKU: %w", err))
+	}
+
+	// TODO: use API DTOs instead of returning raw DB rows
+	return c.JSON(http.StatusCreated, row)
+}
+
+func (h *SKUHandler) ListSKUs(c echo.Context) error {
+	merchantID, err := auth.MerchantID(c)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusUnauthorized, "invalid merchant ID in token").
+			WithInternal(fmt.Errorf("ListSKUs: %w", err))
+	}
+
+	skus, err := h.queries.ListSKUsByMerchantID(c.Request().Context(), pgtype.UUID{Bytes: merchantID, Valid: true})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to list SKUs").
+			WithInternal(fmt.Errorf("queries.ListSKUsByMerchantID: %w", err))
+	}
+
+	return c.JSON(http.StatusOK, skus)
+}
+
+func (h *SKUHandler) RevokeSKU(c echo.Context) error {
+	merchantID, err := auth.MerchantID(c)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusUnauthorized, "invalid merchant ID in token").
+			WithInternal(fmt.Errorf("RevokeSKU: %w", err))
+	}
+
+	skuID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "invalid SKU ID").
+			WithInternal(fmt.Errorf("uuid.Parse: %w", err))
+	}
+
+	err = h.queries.RevokeSKU(c.Request().Context(), sqlcgen.RevokeSKUParams{
+		ID:         pgtype.UUID{Bytes: skuID, Valid: true},
+		MerchantID: pgtype.UUID{Bytes: merchantID, Valid: true},
+	})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to revoke SKU").
+			WithInternal(fmt.Errorf("queries.RevokeSKU: %w", err))
+	}
+
+	return c.NoContent(http.StatusNoContent)
+}
