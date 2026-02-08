@@ -16,8 +16,8 @@ export function LoginPage() {
     setIsLoading(true);
 
     try {
-      const { merchant_id } = await authApi.login({ email, password });
-      login(merchant_id);
+      const { merchant_id, name } = await authApi.login({ email, password });
+      login(merchant_id, name);
     } catch {
       setError("Invalid email or password.");
     } finally {

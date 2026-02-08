@@ -9,6 +9,7 @@ import (
 	"billbo.com/backend/database/sqlcgen"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/labstack/echo/v4"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/bcrypt"
@@ -99,6 +100,7 @@ type LoginRequest struct {
 type LoginResponse struct {
 	MerchantID string `json:"merchant_id"`
 	Email      string `json:"email"`
+	Name       string `json:"name"`
 }
 
 func (h *AuthHandler) Login(c echo.Context) error {
@@ -151,6 +153,7 @@ func (h *AuthHandler) Login(c echo.Context) error {
 	return c.JSON(http.StatusOK, LoginResponse{
 		MerchantID: merchantID,
 		Email:      merchant.Email,
+		Name:       merchant.Name,
 	})
 }
 
@@ -169,11 +172,25 @@ func (h *AuthHandler) Logout(c echo.Context) error {
 type MeResponse struct {
 	MerchantID string `json:"merchant_id"`
 	Email      string `json:"email"`
+	Name       string `json:"name"`
 }
 
 func (h *AuthHandler) Me(c echo.Context) error {
+	merchantUUID, err := MerchantID(c)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusUnauthorized, "invalid merchant").
+			WithInternal(fmt.Errorf("Me: %w", err))
+	}
+
+	merchant, err := h.queries.GetMerchantByID(c.Request().Context(), pgtype.UUID{Bytes: merchantUUID, Valid: true})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to fetch merchant").
+			WithInternal(fmt.Errorf("Me: queries.GetMerchantByID: %w", err))
+	}
+
 	return c.JSON(http.StatusOK, MeResponse{
-		MerchantID: c.Get("merchant_id").(string),
-		Email:      c.Get("email").(string),
+		MerchantID: merchantUUID.String(),
+		Email:      merchant.Email,
+		Name:       merchant.Name,
 	})
 }

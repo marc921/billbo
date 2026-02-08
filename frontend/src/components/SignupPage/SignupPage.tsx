@@ -18,8 +18,11 @@ export function SignupPage() {
 
     try {
       await authApi.signup({ email, password, name });
-      const { merchant_id } = await authApi.login({ email, password });
-      login(merchant_id);
+      const { merchant_id, name: merchantName } = await authApi.login({
+        email,
+        password,
+      });
+      login(merchant_id, merchantName);
     } catch {
       setError("Could not create account. Email may already be in use.");
     } finally {

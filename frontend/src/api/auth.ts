@@ -8,6 +8,7 @@ type LoginBody = {
 type LoginResponse = {
   merchant_id: string;
   email: string;
+  name: string;
 };
 
 type SignupBody = {
@@ -25,6 +26,7 @@ type SignupResponse = {
 type MeResponse = {
   merchant_id: string;
   email: string;
+  name: string;
 };
 
 const login = makeApiPost<LoginBody, LoginResponse>("/api/v1/auth/login");

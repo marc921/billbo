@@ -4,7 +4,8 @@ export type AuthContextValue = {
   isAuthenticated: boolean;
   isLoading: boolean;
   merchantID: string | null;
-  login: (merchantID: string) => void;
+  merchantName: string | null;
+  login: (merchantID: string, merchantName: string) => void;
   logout: () => void;
 };
 
