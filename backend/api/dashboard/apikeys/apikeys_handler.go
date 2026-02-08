@@ -44,6 +44,40 @@ type CreateAPIKeyResponse struct {
 	KeyPrefix string `json:"key_prefix"`
 }
 
+func (r *CreateAPIKeyResponse) FromDB(row *sqlcgen.ApiKey, rawKey string) *CreateAPIKeyResponse {
+	if row == nil {
+		return nil
+	}
+	r.ID = row.ID.String()
+	r.Name = row.Name
+	r.Key = rawKey
+	r.KeyPrefix = row.KeyPrefix
+	return r
+}
+
+type APIKeyResponse struct {
+	ID        string  `json:"ID"`
+	Name      string  `json:"Name"`
+	KeyPrefix string  `json:"KeyPrefix"`
+	RevokedAt *string `json:"RevokedAt"`
+	CreatedAt string  `json:"CreatedAt"`
+}
+
+func (r *APIKeyResponse) FromDB(row *sqlcgen.ApiKey) *APIKeyResponse {
+	if row == nil {
+		return nil
+	}
+	r.ID = row.ID.String()
+	r.Name = row.Name
+	r.KeyPrefix = row.KeyPrefix
+	if row.RevokedAt.Valid {
+		s := row.RevokedAt.Time.String()
+		r.RevokedAt = &s
+	}
+	r.CreatedAt = row.CreatedAt.Time.String()
+	return r
+}
+
 func (h *APIKeyHandler) CreateAPIKey(c echo.Context) error {
 	merchantID, err := auth.MerchantID(c)
 	if err != nil {
@@ -77,12 +111,7 @@ func (h *APIKeyHandler) CreateAPIKey(c echo.Context) error {
 			WithInternal(fmt.Errorf("queries.CreateAPIKey: %w", err))
 	}
 
-	return c.JSON(http.StatusCreated, CreateAPIKeyResponse{
-		ID:        row.ID.String(),
-		Name:      row.Name,
-		Key:       rawKey,
-		KeyPrefix: row.KeyPrefix,
-	})
+	return c.JSON(http.StatusCreated, new(CreateAPIKeyResponse).FromDB(row, rawKey))
 }
 
 func (h *APIKeyHandler) ListAPIKeys(c echo.Context) error {
@@ -92,12 +121,16 @@ func (h *APIKeyHandler) ListAPIKeys(c echo.Context) error {
 			WithInternal(fmt.Errorf("ListAPIKeys: %w", err))
 	}
 
-	keys, err := h.queries.ListAPIKeysByMerchantID(c.Request().Context(), pgtype.UUID{Bytes: merchantID, Valid: true})
+	rows, err := h.queries.ListAPIKeysByMerchantID(c.Request().Context(), pgtype.UUID{Bytes: merchantID, Valid: true})
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to list API keys").
 			WithInternal(fmt.Errorf("queries.ListAPIKeysByMerchantID: %w", err))
 	}
 
+	keys := make([]*APIKeyResponse, len(rows))
+	for i, row := range rows {
+		keys[i] = new(APIKeyResponse).FromDB(row)
+	}
 	return c.JSON(http.StatusOK, keys)
 }
 

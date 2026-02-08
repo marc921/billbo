@@ -1,11 +1,10 @@
 -- name: CreateSKU :one
 INSERT INTO skus (merchant_id, name, unit, price_per_unit)
 VALUES ($1, $2, sqlc.narg('unit'), $3)
-RETURNING id, merchant_id, name, unit, price_per_unit, revoked_at, created_at;
+RETURNING *;
 
 -- name: ListSKUsByMerchantID :many
-SELECT id, name, unit, price_per_unit, revoked_at, created_at
-FROM skus
+SELECT * FROM skus
 WHERE merchant_id = $1
 ORDER BY created_at DESC;
 

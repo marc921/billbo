@@ -45,32 +45,23 @@ func (q *Queries) CreateSKU(ctx context.Context, arg CreateSKUParams) (*Sku, err
 }
 
 const listSKUsByMerchantID = `-- name: ListSKUsByMerchantID :many
-SELECT id, name, unit, price_per_unit, revoked_at, created_at
-FROM skus
+SELECT id, merchant_id, name, unit, price_per_unit, revoked_at, created_at FROM skus
 WHERE merchant_id = $1
 ORDER BY created_at DESC
 `
 
-type ListSKUsByMerchantIDRow struct {
-	ID           pgtype.UUID
-	Name         string
-	Unit         pgtype.Text
-	PricePerUnit float64
-	RevokedAt    pgtype.Timestamptz
-	CreatedAt    pgtype.Timestamptz
-}
-
-func (q *Queries) ListSKUsByMerchantID(ctx context.Context, merchantID pgtype.UUID) ([]*ListSKUsByMerchantIDRow, error) {
+func (q *Queries) ListSKUsByMerchantID(ctx context.Context, merchantID pgtype.UUID) ([]*Sku, error) {
 	rows, err := q.db.Query(ctx, listSKUsByMerchantID, merchantID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []*ListSKUsByMerchantIDRow
+	var items []*Sku
 	for rows.Next() {
-		var i ListSKUsByMerchantIDRow
+		var i Sku
 		if err := rows.Scan(
 			&i.ID,
+			&i.MerchantID,
 			&i.Name,
 			&i.Unit,
 			&i.PricePerUnit,

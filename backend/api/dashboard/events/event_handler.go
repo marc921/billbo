@@ -18,12 +18,26 @@ type EventHandler struct {
 	queries *sqlcgen.Queries
 }
 
-type Event struct {
-	MerchantID uuid.UUID `json:"merchant_id"`
-	CustomerID uuid.UUID `json:"customer_id"`
-	SKU_ID     uuid.UUID `json:"sku_id"`
-	Amount     float64   `json:"amount"`
-	SentAt     time.Time `json:"sent_at"`
+type EventResponse struct {
+	ID         string  `json:"ID"`
+	MerchantID string  `json:"MerchantID"`
+	CustomerID string  `json:"CustomerID"`
+	SkuID      string  `json:"SkuID"`
+	Amount     float64 `json:"Amount"`
+	SentAt     string  `json:"SentAt"`
+}
+
+func (r *EventResponse) FromDB(row *sqlcgen.Event) *EventResponse {
+	if row == nil {
+		return nil
+	}
+	r.ID = row.ID.String()
+	r.MerchantID = row.MerchantID.String()
+	r.CustomerID = row.CustomerID.String()
+	r.SkuID = row.SkuID.String()
+	r.Amount = row.Amount
+	r.SentAt = row.SentAt.Time.String()
+	return r
 }
 
 func NewEventHandler(
@@ -78,10 +92,15 @@ func (h *EventHandler) GetEvents(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusUnauthorized, "invalid merchant ID in token").
 			WithInternal(fmt.Errorf("GetEvents: %w", err))
 	}
-	events, err := h.queries.ListEventsByMerchantID(c.Request().Context(), pgtype.UUID{Bytes: merchantID, Valid: true})
+	rows, err := h.queries.ListEventsByMerchantID(c.Request().Context(), pgtype.UUID{Bytes: merchantID, Valid: true})
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to list events").
 			WithInternal(fmt.Errorf("queries.ListEventsByMerchantID: %w", err))
+	}
+
+	events := make([]*EventResponse, len(rows))
+	for i, row := range rows {
+		events[i] = new(EventResponse).FromDB(row)
 	}
 	return c.JSON(http.StatusOK, events)
 }

@@ -31,6 +31,33 @@ func NewSKUHandler(
 	}
 }
 
+type SKUResponse struct {
+	ID           string  `json:"ID"`
+	Name         string  `json:"Name"`
+	Unit         *string `json:"Unit"`
+	PricePerUnit float64 `json:"PricePerUnit"`
+	RevokedAt    *string `json:"RevokedAt"`
+	CreatedAt    string  `json:"CreatedAt"`
+}
+
+func (r *SKUResponse) FromDB(row *sqlcgen.Sku) *SKUResponse {
+	if row == nil {
+		return nil
+	}
+	r.ID = row.ID.String()
+	r.Name = row.Name
+	if row.Unit.Valid {
+		r.Unit = &row.Unit.String
+	}
+	r.PricePerUnit = row.PricePerUnit
+	if row.RevokedAt.Valid {
+		s := row.RevokedAt.Time.String()
+		r.RevokedAt = &s
+	}
+	r.CreatedAt = row.CreatedAt.Time.String()
+	return r
+}
+
 type CreateSKURequest struct {
 	Name         string  `json:"name" validate:"required"`
 	Unit         *string `json:"unit"`
@@ -66,8 +93,7 @@ func (h *SKUHandler) CreateSKU(c echo.Context) error {
 			WithInternal(fmt.Errorf("queries.CreateSKU: %w", err))
 	}
 
-	// TODO: use API DTOs instead of returning raw DB rows
-	return c.JSON(http.StatusCreated, row)
+	return c.JSON(http.StatusCreated, new(SKUResponse).FromDB(row))
 }
 
 func (h *SKUHandler) ListSKUs(c echo.Context) error {
@@ -77,12 +103,16 @@ func (h *SKUHandler) ListSKUs(c echo.Context) error {
 			WithInternal(fmt.Errorf("ListSKUs: %w", err))
 	}
 
-	skus, err := h.queries.ListSKUsByMerchantID(c.Request().Context(), pgtype.UUID{Bytes: merchantID, Valid: true})
+	rows, err := h.queries.ListSKUsByMerchantID(c.Request().Context(), pgtype.UUID{Bytes: merchantID, Valid: true})
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to list SKUs").
 			WithInternal(fmt.Errorf("queries.ListSKUsByMerchantID: %w", err))
 	}
 
+	skus := make([]*SKUResponse, len(rows))
+	for i, row := range rows {
+		skus[i] = new(SKUResponse).FromDB(row)
+	}
 	return c.JSON(http.StatusOK, skus)
 }
 

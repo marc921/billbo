@@ -14,7 +14,7 @@ import (
 const createAPIKey = `-- name: CreateAPIKey :one
 INSERT INTO api_keys (merchant_id, name, key_prefix, key_hash)
 VALUES ($1, $2, $3, $4)
-RETURNING id, merchant_id, name, key_prefix, created_at
+RETURNING id, merchant_id, name, key_prefix, key_hash, revoked_at, created_at
 `
 
 type CreateAPIKeyParams struct {
@@ -24,27 +24,21 @@ type CreateAPIKeyParams struct {
 	KeyHash    string
 }
 
-type CreateAPIKeyRow struct {
-	ID         pgtype.UUID
-	MerchantID pgtype.UUID
-	Name       string
-	KeyPrefix  string
-	CreatedAt  pgtype.Timestamptz
-}
-
-func (q *Queries) CreateAPIKey(ctx context.Context, arg CreateAPIKeyParams) (*CreateAPIKeyRow, error) {
+func (q *Queries) CreateAPIKey(ctx context.Context, arg CreateAPIKeyParams) (*ApiKey, error) {
 	row := q.db.QueryRow(ctx, createAPIKey,
 		arg.MerchantID,
 		arg.Name,
 		arg.KeyPrefix,
 		arg.KeyHash,
 	)
-	var i CreateAPIKeyRow
+	var i ApiKey
 	err := row.Scan(
 		&i.ID,
 		&i.MerchantID,
 		&i.Name,
 		&i.KeyPrefix,
+		&i.KeyHash,
+		&i.RevokedAt,
 		&i.CreatedAt,
 	)
 	return &i, err
@@ -70,33 +64,26 @@ func (q *Queries) GetAPIKeyByHash(ctx context.Context, keyHash string) (*GetAPIK
 }
 
 const listAPIKeysByMerchantID = `-- name: ListAPIKeysByMerchantID :many
-SELECT id, name, key_prefix, revoked_at, created_at
-FROM api_keys
+SELECT id, merchant_id, name, key_prefix, key_hash, revoked_at, created_at FROM api_keys
 WHERE merchant_id = $1
 ORDER BY created_at DESC
 `
 
-type ListAPIKeysByMerchantIDRow struct {
-	ID        pgtype.UUID
-	Name      string
-	KeyPrefix string
-	RevokedAt pgtype.Timestamptz
-	CreatedAt pgtype.Timestamptz
-}
-
-func (q *Queries) ListAPIKeysByMerchantID(ctx context.Context, merchantID pgtype.UUID) ([]*ListAPIKeysByMerchantIDRow, error) {
+func (q *Queries) ListAPIKeysByMerchantID(ctx context.Context, merchantID pgtype.UUID) ([]*ApiKey, error) {
 	rows, err := q.db.Query(ctx, listAPIKeysByMerchantID, merchantID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []*ListAPIKeysByMerchantIDRow
+	var items []*ApiKey
 	for rows.Next() {
-		var i ListAPIKeysByMerchantIDRow
+		var i ApiKey
 		if err := rows.Scan(
 			&i.ID,
+			&i.MerchantID,
 			&i.Name,
 			&i.KeyPrefix,
+			&i.KeyHash,
 			&i.RevokedAt,
 			&i.CreatedAt,
 		); err != nil {
