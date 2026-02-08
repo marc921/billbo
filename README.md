@@ -38,4 +38,5 @@ Loading env variables into a config struct in Go code: [go-envconfig](https://gi
 
 ## Frontend
 Main language: React / Typescript
+Style: Tailwind CSS
 Deployment: Vercel

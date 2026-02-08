@@ -63,6 +63,11 @@ func IngestAPI() error {
 	return cmd.Run()
 }
 
+// Frontend starts the frontend dev server.
+func Frontend() error {
+	return sh.RunV("npm", "--prefix", "frontend", "run", "dev")
+}
+
 // Generate runs sqlc code generation.
 func Generate() error {
 	return sh.RunV("go", "generate", "./...")
