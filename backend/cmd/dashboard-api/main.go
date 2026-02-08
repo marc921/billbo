@@ -52,6 +52,7 @@ func main() {
 	e := echo.New()
 	e.Binder = api.NewValidatingBinder()
 
+	e.Pre(middleware.RemoveTrailingSlash())
 	e.Use(middleware.RequestLogger())
 	e.Debug = true
 

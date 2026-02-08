@@ -5,5 +5,6 @@ export function useListEvents() {
   return useQuery({
     queryKey: ["events"],
     queryFn: eventsApi.listEvents,
+    refetchInterval: 5000,
   });
 }

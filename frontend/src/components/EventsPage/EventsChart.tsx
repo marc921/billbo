@@ -32,23 +32,59 @@ type BucketData = {
 
 const MAX_SERIES = 10;
 
+type TimeBucketResolution = "second" | "minute" | "hour";
+
+function truncateToResolution(date: Date, resolution: TimeBucketResolution): number {
+  switch (resolution) {
+    case "second":
+      return new Date(
+        date.getFullYear(), date.getMonth(), date.getDate(),
+        date.getHours(), date.getMinutes(), date.getSeconds(),
+      ).getTime();
+    case "minute":
+      return new Date(
+        date.getFullYear(), date.getMonth(), date.getDate(),
+        date.getHours(), date.getMinutes(),
+      ).getTime();
+    case "hour":
+      return new Date(
+        date.getFullYear(), date.getMonth(), date.getDate(),
+        date.getHours(),
+      ).getTime();
+  }
+}
+
+function pickResolution(events: Event[]): TimeBucketResolution {
+  if (events.length === 0) return "hour";
+  let oldest = Infinity;
+  for (const event of events) {
+    const t = new Date(event.SentAt).getTime();
+    if (t < oldest) oldest = t;
+  }
+  const ageMs = Date.now() - oldest;
+  if (ageMs < 60_000) return "second";
+  if (ageMs < 3_600_000) return "minute";
+  return "hour";
+}
+
+const LABEL_FORMATS: Record<TimeBucketResolution, Intl.DateTimeFormatOptions> = {
+  second: { hour: "2-digit", minute: "2-digit", second: "2-digit" },
+  minute: { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" },
+  hour: { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" },
+};
+
 function bucketEvents(
   events: Event[],
   skuMap: Map<string, SKU>,
   groupBy: (event: Event) => string,
 ): BucketData {
-  // Map<hour, Map<groupKey, totalPrice>>
+  const resolution = pickResolution(events);
   const buckets = new Map<number, Map<string, number>>();
   const groupKeySet = new Set<string>();
 
   for (const event of events) {
     const date = new Date(event.SentAt);
-    const hour = new Date(
-      date.getFullYear(),
-      date.getMonth(),
-      date.getDate(),
-      date.getHours(),
-    ).getTime();
+    const bucketKey = truncateToResolution(date, resolution);
 
     const pricePerUnit = skuMap.get(event.SkuID)?.PricePerUnit ?? 0;
     const totalPrice = event.Amount * pricePerUnit;
@@ -56,9 +92,9 @@ function bucketEvents(
     const key = groupBy(event);
     groupKeySet.add(key);
 
-    if (!buckets.has(hour)) buckets.set(hour, new Map());
-    const hourBucket = buckets.get(hour)!;
-    hourBucket.set(key, (hourBucket.get(key) ?? 0) + totalPrice);
+    if (!buckets.has(bucketKey)) buckets.set(bucketKey, new Map());
+    const bucket = buckets.get(bucketKey)!;
+    bucket.set(key, (bucket.get(key) ?? 0) + totalPrice);
   }
 
   // Compute total price per group across all hours
@@ -83,12 +119,7 @@ function bucketEvents(
     .map(([timestamp, groupTotals]) => {
       const bucket: Bucket = {
         timestamp,
-        label: new Date(timestamp).toLocaleString(undefined, {
-          month: "short",
-          day: "numeric",
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
+        label: new Date(timestamp).toLocaleString(undefined, LABEL_FORMATS[resolution]),
       };
       for (const key of topKeys) {
         const val = groupTotals.get(key) ?? 0;

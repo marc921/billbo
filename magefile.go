@@ -107,6 +107,14 @@ func Frontend() error {
 	return sh.RunV("npm", "--prefix", "frontend", "run", "dev")
 }
 
+// Playground sends fake events to the ingest API every 100ms.
+func Playground() error {
+	cmd := exec.Command("go", "run", "./backend/cmd/playground")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
+}
+
 // Generate runs sqlc code generation.
 func Generate() error {
 	return sh.RunV("go", "generate", "./...")
