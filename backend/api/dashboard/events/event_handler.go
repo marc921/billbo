@@ -36,7 +36,7 @@ func (r *EventResponse) FromDB(row *sqlcgen.Event) *EventResponse {
 	r.CustomerID = row.CustomerID.String()
 	r.SkuID = row.SkuID.String()
 	r.Amount = row.Amount
-	r.SentAt = row.SentAt.Time.String()
+	r.SentAt = row.SentAt.Time.Format(time.RFC3339)
 	return r
 }
 

@@ -6,6 +6,7 @@ import { skusApi, type SKU } from "@/api/skus";
 import { useListEvents } from "@/queries/useListEvents";
 import { useListSKUs } from "@/queries/useListSKUs";
 import { DataTable } from "@/components/DataTable";
+import { EventsChart } from "@/components/EventsPage/EventsChart";
 import { formatDate } from "@/lib/formatDate";
 
 type EventRow = {
@@ -135,6 +136,8 @@ export function EventsPage() {
       )}
 
       {rows && rows.length > 0 && (
+        <>
+        <EventsChart events={events!} skuMap={skuMap} />
         <DataTable
           data={rows}
           columns={columns}
@@ -146,6 +149,7 @@ export function EventsPage() {
             row.sku?.RevokedAt ? "Event received but SKU is revoked" : undefined
           }
         />
+        </>
       )}
     </div>
   );

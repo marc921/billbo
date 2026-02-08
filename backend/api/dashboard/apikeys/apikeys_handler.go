@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"net/http"
+	"time"
 
 	"billbo.com/backend/api/dashboard/auth"
 	"billbo.com/backend/database/sqlcgen"
@@ -71,10 +72,10 @@ func (r *APIKeyResponse) FromDB(row *sqlcgen.ApiKey) *APIKeyResponse {
 	r.Name = row.Name
 	r.KeyPrefix = row.KeyPrefix
 	if row.RevokedAt.Valid {
-		s := row.RevokedAt.Time.String()
+		s := row.RevokedAt.Time.Format(time.RFC3339)
 		r.RevokedAt = &s
 	}
-	r.CreatedAt = row.CreatedAt.Time.String()
+	r.CreatedAt = row.CreatedAt.Time.Format(time.RFC3339)
 	return r
 }
 

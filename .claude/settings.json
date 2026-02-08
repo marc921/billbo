@@ -8,7 +8,9 @@
       "Bash(npm install:*)",
       "Bash(ls:*)",
       "Bash(go mod tidy:*)",
-      "Bash(go vet:*)"
+      "Bash(go vet:*)",
+      "Bash(npm ls:*)",
+      "WebFetch(domain:*)"
     ]
   }
 }

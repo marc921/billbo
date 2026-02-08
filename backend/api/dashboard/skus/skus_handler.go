@@ -3,6 +3,7 @@ package skus
 import (
 	"fmt"
 	"net/http"
+	"time"
 
 	"billbo.com/backend/api/dashboard/auth"
 	"billbo.com/backend/database/sqlcgen"
@@ -51,10 +52,10 @@ func (r *SKUResponse) FromDB(row *sqlcgen.Sku) *SKUResponse {
 	}
 	r.PricePerUnit = row.PricePerUnit
 	if row.RevokedAt.Valid {
-		s := row.RevokedAt.Time.String()
+		s := row.RevokedAt.Time.Format(time.RFC3339)
 		r.RevokedAt = &s
 	}
-	r.CreatedAt = row.CreatedAt.Time.String()
+	r.CreatedAt = row.CreatedAt.Time.Format(time.RFC3339)
 	return r
 }
 
