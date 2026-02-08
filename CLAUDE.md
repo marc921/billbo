@@ -74,6 +74,7 @@ The Vite dev server proxies `/api` requests to the dashboard API at `localhost:8
 - Structured logging with [zap](https://github.com/uber-go/zap)
 - Configuration via environment variables using [go-envconfig](https://github.com/sethvargo/go-envconfig)
 - Use `fmt.Errorf("funcName: %w", err)` to wrap errors with context
+- In Echo API handlers, use c.Bind and struct validation for all request params (path, query and json body). Never use c.Param or c.QueryParam
 
 ## Database
 

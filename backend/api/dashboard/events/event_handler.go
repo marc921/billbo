@@ -40,10 +40,10 @@ func NewEventHandler(
 }
 
 type PostEventRequest struct {
-	CustomerID uuid.UUID `json:"customer_id"`
-	SKU_ID     uuid.UUID `json:"sku_id"`
-	Amount     float64   `json:"amount"`
-	SentAt     time.Time `json:"sent_at"`
+	CustomerID uuid.UUID `json:"customer_id" validate:"required"`
+	SKU_ID     uuid.UUID `json:"sku_id" validate:"required"`
+	Amount     float64   `json:"amount" validate:"gt=0"`
+	SentAt     time.Time `json:"sent_at" validate:"required"`
 }
 
 func (h *EventHandler) PostEvent(c echo.Context) error {

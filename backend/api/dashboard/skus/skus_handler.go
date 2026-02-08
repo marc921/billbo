@@ -32,9 +32,9 @@ func NewSKUHandler(
 }
 
 type CreateSKURequest struct {
-	Name         string  `json:"name"`
+	Name         string  `json:"name" validate:"required"`
 	Unit         *string `json:"unit"`
-	PricePerUnit float64 `json:"price_per_unit"`
+	PricePerUnit float64 `json:"price_per_unit" validate:"gt=0"`
 }
 
 func (h *SKUHandler) CreateSKU(c echo.Context) error {
@@ -48,14 +48,6 @@ func (h *SKUHandler) CreateSKU(c echo.Context) error {
 	if err := c.Bind(&req); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid request").
 			WithInternal(fmt.Errorf("c.Bind: %w", err))
-	}
-
-	// TODO: validate using go-validator
-	if req.Name == "" {
-		return echo.NewHTTPError(http.StatusBadRequest, "name is required")
-	}
-	if req.PricePerUnit <= 0 {
-		return echo.NewHTTPError(http.StatusBadRequest, "price_per_unit must be positive")
 	}
 
 	var unit pgtype.Text
@@ -94,6 +86,10 @@ func (h *SKUHandler) ListSKUs(c echo.Context) error {
 	return c.JSON(http.StatusOK, skus)
 }
 
+type RevokeSKURequest struct {
+	ID uuid.UUID `param:"id" validate:"required"`
+}
+
 func (h *SKUHandler) RevokeSKU(c echo.Context) error {
 	merchantID, err := auth.MerchantID(c)
 	if err != nil {
@@ -101,14 +97,14 @@ func (h *SKUHandler) RevokeSKU(c echo.Context) error {
 			WithInternal(fmt.Errorf("RevokeSKU: %w", err))
 	}
 
-	skuID, err := uuid.Parse(c.Param("id"))
-	if err != nil {
+	var req RevokeSKURequest
+	if err := c.Bind(&req); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid SKU ID").
-			WithInternal(fmt.Errorf("uuid.Parse: %w", err))
+			WithInternal(fmt.Errorf("c.Bind: %w", err))
 	}
 
 	err = h.queries.RevokeSKU(c.Request().Context(), sqlcgen.RevokeSKUParams{
-		ID:         pgtype.UUID{Bytes: skuID, Valid: true},
+		ID:         pgtype.UUID{Bytes: req.ID, Valid: true},
 		MerchantID: pgtype.UUID{Bytes: merchantID, Valid: true},
 	})
 	if err != nil {

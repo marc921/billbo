@@ -42,9 +42,9 @@ func NewAuthHandler(
 }
 
 type SignupRequest struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
-	Name     string `json:"name"`
+	Email    string `json:"email" validate:"required"`
+	Password string `json:"password" validate:"required"`
+	Name     string `json:"name" validate:"required"`
 }
 
 type SignupResponse struct {
@@ -58,10 +58,6 @@ func (h *AuthHandler) Signup(c echo.Context) error {
 	if err := c.Bind(&req); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid request").
 			WithInternal(fmt.Errorf("c.Bind: %w", err))
-	}
-
-	if req.Email == "" || req.Password == "" || req.Name == "" {
-		return echo.NewHTTPError(http.StatusBadRequest, "email, password, and name are required")
 	}
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
@@ -93,8 +89,8 @@ func (h *AuthHandler) Signup(c echo.Context) error {
 }
 
 type LoginRequest struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
+	Email    string `json:"email" validate:"required"`
+	Password string `json:"password" validate:"required"`
 }
 
 type LoginResponse struct {
@@ -108,10 +104,6 @@ func (h *AuthHandler) Login(c echo.Context) error {
 	if err := c.Bind(&req); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid request").
 			WithInternal(fmt.Errorf("c.Bind: %w", err))
-	}
-
-	if req.Email == "" || req.Password == "" {
-		return echo.NewHTTPError(http.StatusBadRequest, "email and password are required")
 	}
 
 	merchant, err := h.queries.GetMerchantByEmail(c.Request().Context(), req.Email)

@@ -34,7 +34,7 @@ func NewAPIKeyHandler(
 }
 
 type CreateAPIKeyRequest struct {
-	Name string `json:"name"`
+	Name string `json:"name" validate:"required"`
 }
 
 type CreateAPIKeyResponse struct {
@@ -55,10 +55,6 @@ func (h *APIKeyHandler) CreateAPIKey(c echo.Context) error {
 	if err := c.Bind(&req); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid request").
 			WithInternal(fmt.Errorf("c.Bind: %w", err))
-	}
-
-	if req.Name == "" {
-		return echo.NewHTTPError(http.StatusBadRequest, "name is required")
 	}
 
 	rawKey, err := generateAPIKey()
@@ -105,6 +101,10 @@ func (h *APIKeyHandler) ListAPIKeys(c echo.Context) error {
 	return c.JSON(http.StatusOK, keys)
 }
 
+type RevokeAPIKeyRequest struct {
+	ID uuid.UUID `param:"id" validate:"required"`
+}
+
 func (h *APIKeyHandler) RevokeAPIKey(c echo.Context) error {
 	merchantID, err := auth.MerchantID(c)
 	if err != nil {
@@ -112,14 +112,14 @@ func (h *APIKeyHandler) RevokeAPIKey(c echo.Context) error {
 			WithInternal(fmt.Errorf("RevokeAPIKey: %w", err))
 	}
 
-	keyID, err := uuid.Parse(c.Param("id"))
-	if err != nil {
+	var req RevokeAPIKeyRequest
+	if err := c.Bind(&req); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid API key ID").
-			WithInternal(fmt.Errorf("uuid.Parse: %w", err))
+			WithInternal(fmt.Errorf("c.Bind: %w", err))
 	}
 
 	err = h.queries.RevokeAPIKey(c.Request().Context(), sqlcgen.RevokeAPIKeyParams{
-		ID:         pgtype.UUID{Bytes: keyID, Valid: true},
+		ID:         pgtype.UUID{Bytes: req.ID, Valid: true},
 		MerchantID: pgtype.UUID{Bytes: merchantID, Valid: true},
 	})
 	if err != nil {

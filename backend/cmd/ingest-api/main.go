@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	"billbo.com/backend/api"
 	ingestauth "billbo.com/backend/api/ingest/auth"
 	"billbo.com/backend/api/ingest/events"
 	"billbo.com/backend/database"
@@ -47,6 +48,7 @@ func main() {
 
 	// Echo instance
 	e := echo.New()
+	e.Binder = api.NewValidatingBinder()
 
 	e.Use(middleware.RequestLogger())
 	e.Debug = true
