@@ -10,7 +10,7 @@
       "Bash(go mod tidy:*)",
       "Bash(go vet:*)",
       "Bash(npm ls:*)",
-      "WebFetch(domain:*)"
+      "WebFetch(*)"
     ]
   }
 }
