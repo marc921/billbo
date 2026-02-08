@@ -13,6 +13,7 @@ import (
 	"billbo.com/backend/api/dashboard/apikeys"
 	"billbo.com/backend/api/dashboard/auth"
 	"billbo.com/backend/api/dashboard/events"
+	"billbo.com/backend/api/dashboard/skus"
 	"billbo.com/backend/database"
 	"billbo.com/backend/database/sqlcgen"
 	"github.com/labstack/echo/v4"
@@ -68,6 +69,11 @@ func main() {
 	apiKeyHandler := apikeys.NewAPIKeyHandler(logger, queries)
 	apiKeysGroup := v1.Group("/api-keys", auth.JWTMiddleware([]byte(cfg.JWTSecret)))
 	apiKeyHandler.Routes(apiKeysGroup)
+
+	// SKUs API
+	skuHandler := skus.NewSKUHandler(logger, queries)
+	skusGroup := v1.Group("/skus", auth.JWTMiddleware([]byte(cfg.JWTSecret)))
+	skuHandler.Routes(skusGroup)
 
 	// Start server
 	errGrp, ctx := errgroup.WithContext(ctx)

@@ -39,3 +39,13 @@ type Merchant struct {
 type SchemaMigration struct {
 	Version string
 }
+
+type Sku struct {
+	ID           pgtype.UUID
+	MerchantID   pgtype.UUID
+	Name         string
+	Unit         pgtype.Text
+	PricePerUnit float64
+	RevokedAt    pgtype.Timestamptz
+	CreatedAt    pgtype.Timestamptz
+}
