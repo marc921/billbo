@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { type ColumnDef } from "@tanstack/react-table";
 import { eventsApi, type Event } from "@/api/events";
@@ -108,6 +108,13 @@ export function EventsPage() {
     }
   }
 
+  const groupByCustomer = useCallback((e: Event) => e.CustomerID, []);
+  const groupBySKU = useCallback((e: Event) => e.SkuID, []);
+  const labelBySKU = useCallback(
+    (id: string) => skuMap.get(id)?.Name ?? id,
+    [skuMap],
+  );
+
   const isPending = eventsPending || skusPending;
 
   return (
@@ -137,7 +144,19 @@ export function EventsPage() {
 
       {rows && rows.length > 0 && (
         <>
-        <EventsChart events={events!} skuMap={skuMap} />
+        <EventsChart
+          events={events!}
+          skuMap={skuMap}
+          title="Total price per hour — by customer"
+          groupBy={groupByCustomer}
+        />
+        <EventsChart
+          events={events!}
+          skuMap={skuMap}
+          title="Total price per hour — by SKU"
+          groupBy={groupBySKU}
+          labelBy={labelBySKU}
+        />
         <DataTable
           data={rows}
           columns={columns}

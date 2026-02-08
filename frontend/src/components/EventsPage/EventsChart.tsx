@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   BarChart,
   Bar,
@@ -15,6 +15,9 @@ import { type SKU } from "@/api/skus";
 type EventsChartProps = {
   events: Event[];
   skuMap: Map<string, SKU>;
+  title: string;
+  groupBy: (event: Event) => string;
+  labelBy?: (id: string) => string;
 };
 
 type Bucket = Record<string, string | number> & {
@@ -24,13 +27,19 @@ type Bucket = Record<string, string | number> & {
 
 type BucketData = {
   buckets: Bucket[];
-  customerIDs: string[];
+  seriesKeys: string[];
 };
 
-function bucketEvents(events: Event[], skuMap: Map<string, SKU>): BucketData {
-  // Map<hour, Map<customerID, totalPrice>>
+const MAX_SERIES = 10;
+
+function bucketEvents(
+  events: Event[],
+  skuMap: Map<string, SKU>,
+  groupBy: (event: Event) => string,
+): BucketData {
+  // Map<hour, Map<groupKey, totalPrice>>
   const buckets = new Map<number, Map<string, number>>();
-  const customerIDSet = new Set<string>();
+  const groupKeySet = new Set<string>();
 
   for (const event of events) {
     const date = new Date(event.SentAt);
@@ -44,37 +53,34 @@ function bucketEvents(events: Event[], skuMap: Map<string, SKU>): BucketData {
     const pricePerUnit = skuMap.get(event.SkuID)?.PricePerUnit ?? 0;
     const totalPrice = event.Amount * pricePerUnit;
 
-    customerIDSet.add(event.CustomerID);
+    const key = groupBy(event);
+    groupKeySet.add(key);
 
     if (!buckets.has(hour)) buckets.set(hour, new Map());
     const hourBucket = buckets.get(hour)!;
-    hourBucket.set(
-      event.CustomerID,
-      (hourBucket.get(event.CustomerID) ?? 0) + totalPrice,
-    );
+    hourBucket.set(key, (hourBucket.get(key) ?? 0) + totalPrice);
   }
 
-  // Compute total price per customer across all hours
-  const totalByCustomer = new Map<string, number>();
-  for (const customerTotals of buckets.values()) {
-    for (const [id, val] of customerTotals) {
-      totalByCustomer.set(id, (totalByCustomer.get(id) ?? 0) + val);
+  // Compute total price per group across all hours
+  const totalByGroup = new Map<string, number>();
+  for (const groupTotals of buckets.values()) {
+    for (const [id, val] of groupTotals) {
+      totalByGroup.set(id, (totalByGroup.get(id) ?? 0) + val);
     }
   }
 
-  // Keep top 10 customers by total, rest goes into "Others"
-  const MAX_CUSTOMERS = 10;
-  const sorted = Array.from(totalByCustomer.entries()).sort(
+  // Keep top N groups by total, rest goes into "Others"
+  const sorted = Array.from(totalByGroup.entries()).sort(
     ([, a], [, b]) => b - a,
   );
-  const topIDs = sorted.slice(0, MAX_CUSTOMERS).map(([id]) => id);
-  const othersIDs = sorted.slice(MAX_CUSTOMERS).map(([id]) => id);
-  const customerIDs =
-    othersIDs.length > 0 ? [...topIDs, "Others"] : topIDs;
+  const topKeys = sorted.slice(0, MAX_SERIES).map(([id]) => id);
+  const othersKeys = sorted.slice(MAX_SERIES).map(([id]) => id);
+  const seriesKeys =
+    othersKeys.length > 0 ? [...topKeys, "Others"] : topKeys;
 
   const sortedBuckets = Array.from(buckets.entries())
     .sort(([a], [b]) => a - b)
-    .map(([timestamp, customerTotals]) => {
+    .map(([timestamp, groupTotals]) => {
       const bucket: Bucket = {
         timestamp,
         label: new Date(timestamp).toLocaleString(undefined, {
@@ -84,21 +90,21 @@ function bucketEvents(events: Event[], skuMap: Map<string, SKU>): BucketData {
           minute: "2-digit",
         }),
       };
-      for (const id of topIDs) {
-        const val = customerTotals.get(id) ?? 0;
-        bucket[id] = Math.round(val * 100) / 100;
+      for (const key of topKeys) {
+        const val = groupTotals.get(key) ?? 0;
+        bucket[key] = Math.round(val * 100) / 100;
       }
-      if (othersIDs.length > 0) {
+      if (othersKeys.length > 0) {
         let othersTotal = 0;
-        for (const id of othersIDs) {
-          othersTotal += customerTotals.get(id) ?? 0;
+        for (const key of othersKeys) {
+          othersTotal += groupTotals.get(key) ?? 0;
         }
         bucket["Others"] = Math.round(othersTotal * 100) / 100;
       }
       return bucket;
     });
 
-  return { buckets: sortedBuckets, customerIDs };
+  return { buckets: sortedBuckets, seriesKeys };
 }
 
 const COLORS = [
@@ -114,19 +120,111 @@ const COLORS = [
   "#1e3a5f",
 ];
 
-export function EventsChart({ events, skuMap }: EventsChartProps) {
-  const { buckets, customerIDs } = useMemo(
-    () => bucketEvents(events, skuMap),
-    [events, skuMap],
+type CustomLegendProps = {
+  payload?: Array<{ value: string; color: string; dataKey: string }>;
+  hiddenKeys: Set<string>;
+  onToggle: (key: string) => void;
+  onSolo: (key: string) => void;
+};
+
+function CustomLegend({
+  payload,
+  hiddenKeys,
+  onToggle,
+  onSolo,
+}: CustomLegendProps) {
+  if (!payload) return null;
+
+  return (
+    <div className="flex flex-row flex-wrap justify-center gap-x-4 gap-y-1 pt-2">
+      {payload.map((entry) => {
+        const hidden = hiddenKeys.has(entry.dataKey);
+        return (
+          <div
+            key={entry.dataKey}
+            className="flex flex-row items-center gap-1.5"
+          >
+            <button
+              type="button"
+              onClick={() => onToggle(entry.dataKey)}
+              className="group relative flex h-3 w-3 shrink-0 items-center justify-center rounded-sm"
+              style={{ backgroundColor: hidden ? "#d1d5db" : entry.color }}
+              title={hidden ? "Show" : "Hide"}
+            >
+              <svg
+                viewBox="0 0 8 8"
+                className="h-2 w-2 text-white opacity-0 group-hover:opacity-100"
+              >
+                <path
+                  d="M1 1L7 7M7 1L1 7"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </button>
+            <button
+              type="button"
+              onClick={() => onSolo(entry.dataKey)}
+              className="text-xs hover:underline"
+              style={{ color: hidden ? "#9ca3af" : "#374151" }}
+              title="Show only this"
+            >
+              {entry.value}
+            </button>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+export function EventsChart({
+  events,
+  skuMap,
+  title,
+  groupBy,
+  labelBy,
+}: EventsChartProps) {
+  const { buckets, seriesKeys } = useMemo(
+    () => bucketEvents(events, skuMap, groupBy),
+    [events, skuMap, groupBy],
+  );
+
+  const [hiddenKeys, setHiddenKeys] = useState<Set<string>>(new Set());
+
+  const toggleKey = useCallback((key: string) => {
+    setHiddenKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  }, []);
+
+  const soloKey = useCallback(
+    (key: string) => {
+      setHiddenKeys((prev) => {
+        const allHiddenExceptThis =
+          prev.size === seriesKeys.length - 1 && !prev.has(key);
+        if (allHiddenExceptThis) {
+          // Already solo — restore all
+          return new Set();
+        }
+        return new Set(seriesKeys.filter((k) => k !== key));
+      });
+    },
+    [seriesKeys],
   );
 
   if (buckets.length === 0) return null;
 
   return (
     <div className="mb-6 rounded-lg border border-gray-200 bg-white p-4">
-      <h2 className="mb-3 text-sm font-medium text-gray-700">
-        Total price per hour
-      </h2>
+      <h2 className="mb-3 text-sm font-medium text-gray-700">{title}</h2>
       <ResponsiveContainer width="100%" height={250}>
         <BarChart data={buckets}>
           <CartesianGrid strokeDasharray="3 3" vertical={false} />
@@ -137,13 +235,23 @@ export function EventsChart({ events, skuMap }: EventsChartProps) {
           />
           <YAxis tick={{ fontSize: 12 }} width={60} />
           <Tooltip />
-          <Legend />
-          {customerIDs.map((id, i) => (
+          <Legend
+            content={
+              <CustomLegend
+                hiddenKeys={hiddenKeys}
+                onToggle={toggleKey}
+                onSolo={soloKey}
+              />
+            }
+          />
+          {seriesKeys.map((key, i) => (
             <Bar
-              key={id}
-              dataKey={id}
+              key={key}
+              dataKey={key}
+              name={key === "Others" ? "Others" : (labelBy?.(key) ?? key)}
               stackId="a"
-              fill={id === "Others" ? "#9ca3af" : COLORS[i % COLORS.length]}
+              fill={key === "Others" ? "#9ca3af" : COLORS[i % COLORS.length]}
+              hide={hiddenKeys.has(key)}
             />
           ))}
         </BarChart>
