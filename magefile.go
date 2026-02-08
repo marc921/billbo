@@ -3,19 +3,41 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
 
+	"github.com/joho/godotenv"
 	"github.com/magefile/mage/sh"
+	"github.com/sethvargo/go-envconfig"
 )
 
-// TODO: use a cloud-hosted secrets manager when using a real database.
-var (
-	DATABASE_URL = "postgres://myuser:mypassword@localhost:5432/mydb?sslmode=disable"
-	SCHEMA_FILE  = "backend/database/schema.sql"
-	JWT_SECRET   = "dev-secret-do-not-use-in-production"
-)
+type Secrets struct {
+	DatabaseURL string `env:"DATABASE_URL,required"`
+	JWTSecret   string `env:"JWT_SECRET,required"`
+}
+
+type Config struct {
+	SchemaFile    string `env:"SCHEMA_FILE,default=backend/database/schema.sql"`
+	MigrationsDir string `env:"MIGRATIONS_DIR,default=backend/database/migrations"`
+}
+
+var secrets Secrets
+var config Config
+
+func init() {
+	// Load secrets from secrets.env into the process environment.
+	// Variables already set in the environment take precedence.
+	godotenv.Load("secrets.env")
+
+	if err := envconfig.Process(context.Background(), &secrets); err != nil {
+		panic(fmt.Sprintf("init: %v", err))
+	}
+	if err := envconfig.Process(context.Background(), &config); err != nil {
+		panic(fmt.Sprintf("init: %v", err))
+	}
+}
 
 // StartDB starts the postgres container and runs migrations.
 func StartDB() error {
@@ -39,9 +61,9 @@ func StopDB() error {
 // ResetDB drops and recreates the database, then runs migrations.
 func ResetDB() error {
 	if err := sh.RunV("dbmate",
-		"--url", DATABASE_URL,
-		"--migrations-dir", "backend/database/migrations",
-		"--schema-file", SCHEMA_FILE,
+		"--url", secrets.DatabaseURL,
+		"--migrations-dir", config.MigrationsDir,
+		"--schema-file", config.SchemaFile,
 		"drop",
 	); err != nil {
 		return err
@@ -54,23 +76,19 @@ func ResetDB() error {
 // security measure, but sqlc cannot parse them.
 func dbmateUp() error {
 	if err := sh.RunV("dbmate",
-		"--url", DATABASE_URL,
-		"--migrations-dir", "backend/database/migrations",
-		"--schema-file", SCHEMA_FILE,
+		"--url", secrets.DatabaseURL,
+		"--migrations-dir", config.MigrationsDir,
+		"--schema-file", config.SchemaFile,
 		"up",
 	); err != nil {
 		return err
 	}
-	return sh.Run("sed", "-i", "", `/^\\restrict /d;/^\\unrestrict /d`, SCHEMA_FILE)
+	return sh.Run("sed", "-i", "", `/^\\restrict /d;/^\\unrestrict /d`, config.SchemaFile)
 }
 
 // DashboardAPI starts the dashboard API server.
 func DashboardAPI() error {
 	cmd := exec.Command("go", "run", "./backend/cmd/dashboard-api")
-	cmd.Env = append(os.Environ(),
-		"DATABASE_URL="+DATABASE_URL,
-		"JWT_SECRET="+JWT_SECRET,
-	)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
@@ -79,9 +97,6 @@ func DashboardAPI() error {
 // IngestAPI starts the ingest API server.
 func IngestAPI() error {
 	cmd := exec.Command("go", "run", "./backend/cmd/ingest-api")
-	cmd.Env = append(os.Environ(),
-		"DATABASE_URL="+DATABASE_URL,
-	)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd.Run()

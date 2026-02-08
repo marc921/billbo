@@ -5,7 +5,10 @@
       "Bash(go get:*)",
       "Bash(go build:*)",
       "Bash(npx tsc:*)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(ls:*)",
+      "Bash(go mod tidy:*)",
+      "Bash(go vet:*)"
     ]
   }
 }
