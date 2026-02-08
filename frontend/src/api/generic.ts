@@ -44,7 +44,7 @@ export function makeApiGet<
       (Q extends undefined ? { query?: undefined } : { query: Q }),
   ): Promise<O> {
     const url = formatApiUrl(apiPath, params);
-    const response = await fetch(url);
+    const response = await fetch(url, { credentials: "include" });
     if (!response.ok) {
       throw new Error(`GET ${apiPath} failed: ${response.status}`);
     }
@@ -66,6 +66,7 @@ export function makeApiPost<
     const response = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      credentials: "include",
       body: JSON.stringify(params.body),
     });
     if (!response.ok) {

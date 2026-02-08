@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mage *)",
+      "Bash(go get:*)",
+      "Bash(go build:*)",
+      "Bash(npx tsc:*)"
+    ]
+  }
+}

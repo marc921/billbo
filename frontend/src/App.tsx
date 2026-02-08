@@ -1,6 +1,8 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
-import { appRoutes } from "./routes";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { AuthProvider, useAuth } from "@/components/AuthProvider";
+import { Header } from "@/components/Header";
+import { appRoutes } from "@/routes";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -11,16 +13,63 @@ const queryClient = new QueryClient({
   },
 });
 
+function RequireAuth({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, isLoading } = useAuth();
+  if (isLoading) return null;
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+  return (
+    <>
+      <Header />
+      {children}
+    </>
+  );
+}
+
+function AppRoutes() {
+  const { isAuthenticated, isLoading } = useAuth();
+
+  if (isLoading) return null;
+
+  return (
+    <Routes>
+      <Route
+        path={appRoutes.login.path}
+        element={
+          isAuthenticated ? (
+            <Navigate to="/" replace />
+          ) : (
+            appRoutes.login.element
+          )
+        }
+      />
+      <Route
+        path={appRoutes.signup.path}
+        element={
+          isAuthenticated ? (
+            <Navigate to="/" replace />
+          ) : (
+            appRoutes.signup.element
+          )
+        }
+      />
+      <Route
+        path={appRoutes.home.path}
+        element={<RequireAuth>{appRoutes.home.element}</RequireAuth>}
+      />
+    </Routes>
+  );
+}
+
 function App() {
   return (
     <BrowserRouter>
-      <QueryClientProvider client={queryClient}>
-        <Routes>
-          {Object.entries(appRoutes).map(([key, props]) => (
-            <Route key={key} {...props} />
-          ))}
-        </Routes>
-      </QueryClientProvider>
+      <AuthProvider>
+        <QueryClientProvider client={queryClient}>
+          <AppRoutes />
+        </QueryClientProvider>
+      </AuthProvider>
     </BrowserRouter>
   );
 }
