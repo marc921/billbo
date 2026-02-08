@@ -10,8 +10,8 @@ import (
 	"syscall"
 	"time"
 
-	"billbo.com/backend/api/auth"
-	"billbo.com/backend/api/ingest"
+	ingestauth "billbo.com/backend/api/ingest/auth"
+	"billbo.com/backend/api/ingest/events"
 	"billbo.com/backend/database"
 	"billbo.com/backend/database/sqlcgen"
 	"github.com/labstack/echo/v4"
@@ -54,20 +54,16 @@ func main() {
 	// API
 	v1 := e.Group("/api/v1")
 
-	// Auth API
-	authHandler := auth.NewAuthHandler(logger, queries, []byte(cfg.JWTSecret))
-	authHandler.Routes(v1.Group("/auth"))
-
-	// Ingest API
-	eventHandler := ingest.NewEventHandler(logger, queries)
-	eventsGroup := v1.Group("/events", auth.JWTMiddleware([]byte(cfg.JWTSecret)))
+	// Events API
+	eventHandler := events.NewEventHandler(logger, queries)
+	eventsGroup := v1.Group("/events", ingestauth.APIKeyMiddleware(queries))
 	eventHandler.Routes(eventsGroup)
 
 	// Start server
 	errGrp, ctx := errgroup.WithContext(ctx)
 
 	errGrp.Go(func() error {
-		err := e.Start("localhost:8080")
+		err := e.Start("localhost:" + fmt.Sprint(cfg.Port))
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			return fmt.Errorf("e.Start: %w", err)
 		}

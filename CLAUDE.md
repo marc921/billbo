@@ -10,9 +10,11 @@ billbo/
 ├── docker-compose.yml                       # PostgreSQL container
 ├── backend/
 │   ├── api/                                 # HTTP API handlers
-│   │   └── ingest/                          # Ingest API (events)
+│   │   ├── dashboard/                       # Dashboard API (auth, events, api keys)
+│   │   └── ingest/                          # Ingest API (events, api key auth)
 │   ├── cmd/                                 # Entrypoints
-│   │   └── ingest-api/                      # Ingest API server
+│   │   ├── dashboard-api/                   # Dashboard API server (port 8080)
+│   │   └── ingest-api/                      # Ingest API server (port 9876)
 │   └── database/                            # Database layer
 │       ├── migrations/                      # dbmate migration files
 │       ├── queries/                         # sqlc query files
@@ -41,7 +43,8 @@ All local commands use [mage](https://magefile.org/). Run `mage -l` to list avai
 mage startDB       # Start postgres container + run migrations
 mage stopDB        # Stop postgres container
 mage resetDB       # Drop and recreate database + run migrations
-mage ingestAPI     # Start the ingest API server (port 8080)
+mage dashboardAPI  # Start the dashboard API server (port 8080)
+mage ingestAPI     # Start the ingest API server (port 9876)
 mage frontend      # Start the frontend dev server (port 5173)
 mage generate      # Run sqlc code generation
 ```
@@ -49,11 +52,17 @@ mage generate      # Run sqlc code generation
 **Typical workflow:**
 ```bash
 mage startDB
-mage ingestAPI     # in one terminal
+mage dashboardAPI  # in one terminal
+mage ingestAPI     # in another terminal
 mage frontend      # in another terminal
 ```
 
-The Vite dev server proxies `/api` requests to the backend at `localhost:8080`.
+The Vite dev server proxies `/api` requests to the dashboard API at `localhost:8080`.
+
+## Two Backend Servers
+
+- **Dashboard API** (`mage dashboardAPI`, port 8080): Serves the frontend. Authentication via JWT cookies. Handles merchant auth, event listing, and API key management (CRUD).
+- **Ingest API** (`mage ingestAPI`, port 9876): External-facing API for ingesting usage events. Authentication via API keys (`Authorization: Bearer bb_...`). Keys are created in the dashboard and stored as SHA-256 hashes.
 
 ---
 
@@ -127,6 +136,7 @@ The project should always compile. Verify after changes.
 Use the generic typed API caller factories from `src/api/generic.ts`:
 - `makeApiGet<Query, Output, Path>(path)` for GET requests
 - `makeApiPost<Body, Output, Path>(path)` for POST requests
+- `makeApiDelete<Output, Path>(path)` for DELETE requests
 
 Group API callers by domain in `src/api/` (e.g., `events.ts`).
 

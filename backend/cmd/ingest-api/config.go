@@ -9,7 +9,7 @@ import (
 
 type Config struct {
 	DatabaseURL string `env:"DATABASE_URL,required"`
-	JWTSecret   string `env:"JWT_SECRET,required"`
+	Port        int    `env:"PORT,default=9876"`
 }
 
 func NewConfig(ctx context.Context) (Config, error) {

@@ -64,12 +64,23 @@ func dbmateUp() error {
 	return sh.Run("sed", "-i", "", `/^\\restrict /d;/^\\unrestrict /d`, SCHEMA_FILE)
 }
 
+// DashboardAPI starts the dashboard API server.
+func DashboardAPI() error {
+	cmd := exec.Command("go", "run", "./backend/cmd/dashboard-api")
+	cmd.Env = append(os.Environ(),
+		"DATABASE_URL="+DATABASE_URL,
+		"JWT_SECRET="+JWT_SECRET,
+	)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
+}
+
 // IngestAPI starts the ingest API server.
 func IngestAPI() error {
 	cmd := exec.Command("go", "run", "./backend/cmd/ingest-api")
 	cmd.Env = append(os.Environ(),
 		"DATABASE_URL="+DATABASE_URL,
-		"JWT_SECRET="+JWT_SECRET,
 	)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr

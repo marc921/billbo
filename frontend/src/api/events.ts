@@ -9,8 +9,7 @@ export type Event = {
   SentAt: string;
 };
 
-type PostEventBody = {
-  merchant_id: string;
+type PostEventRequest = {
   customer_id: string;
   sku_id: string;
   amount: number;
@@ -18,9 +17,9 @@ type PostEventBody = {
 };
 
 const listEvents = makeApiGet<undefined, Event[]>("/api/v1/events/");
-const postEvent = makeApiPost<PostEventBody>("/api/v1/events/");
+const postEvent = makeApiPost<PostEventRequest>("/api/v1/events/");
 
 export const eventsApi = {
   listEvents: () => listEvents({}),
-  postEvent: (body: PostEventBody) => postEvent({ body }),
+  postEvent: (body: PostEventRequest) => postEvent({ body }),
 };

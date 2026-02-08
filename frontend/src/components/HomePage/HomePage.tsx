@@ -1,17 +1,14 @@
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { eventsApi } from "@/api/events";
-import { useAuth } from "@/components/AuthProvider";
 import { useListEvents } from "@/queries/useListEvents";
 
 export function HomePage() {
-  const { merchantID } = useAuth();
   const { data: events, isPending, error } = useListEvents();
   const queryClient = useQueryClient();
   const [isGenerating, setIsGenerating] = useState(false);
 
   async function generateDummyEvents() {
-    if (!merchantID) return;
     setIsGenerating(true);
     try {
       const customers = Array.from({ length: 5 }, () => crypto.randomUUID());
@@ -19,7 +16,6 @@ export function HomePage() {
 
       for (let i = 0; i < 20; i++) {
         await eventsApi.postEvent({
-          merchant_id: merchantID,
           customer_id: customers[Math.floor(Math.random() * customers.length)],
           sku_id: skus[Math.floor(Math.random() * skus.length)],
           amount: Math.round(Math.random() * 10000) / 100,

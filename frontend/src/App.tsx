@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
-import { AuthProvider, useAuth } from "@/components/AuthProvider";
+import { AuthProvider } from "@/components/AuthProvider";
+import { useAuth } from "@/hooks/useAuth";
 import { Header } from "@/components/Header";
 import { appRoutes } from "@/routes";
 
@@ -57,6 +58,10 @@ function AppRoutes() {
       <Route
         path={appRoutes.home.path}
         element={<RequireAuth>{appRoutes.home.element}</RequireAuth>}
+      />
+      <Route
+        path={appRoutes.apiKeys.path}
+        element={<RequireAuth>{appRoutes.apiKeys.element}</RequireAuth>}
       />
     </Routes>
   );

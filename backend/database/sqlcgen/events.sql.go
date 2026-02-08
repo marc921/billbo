@@ -35,12 +35,12 @@ func (q *Queries) InsertEvent(ctx context.Context, arg InsertEventParams) error 
 	return err
 }
 
-const listEvents = `-- name: ListEvents :many
-SELECT id, merchant_id, customer_id, sku_id, amount, sent_at FROM events
+const listEventsByMerchantID = `-- name: ListEventsByMerchantID :many
+SELECT id, merchant_id, customer_id, sku_id, amount, sent_at FROM events WHERE merchant_id = $1
 `
 
-func (q *Queries) ListEvents(ctx context.Context) ([]*Event, error) {
-	rows, err := q.db.Query(ctx, listEvents)
+func (q *Queries) ListEventsByMerchantID(ctx context.Context, merchantID pgtype.UUID) ([]*Event, error) {
+	rows, err := q.db.Query(ctx, listEventsByMerchantID, merchantID)
 	if err != nil {
 		return nil, err
 	}

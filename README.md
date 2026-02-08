@@ -10,17 +10,23 @@ Lexicon:
 - (End) Users of the Merchants are called Customers. As well, a customer is an organization containing users.
 - SKU (Stock Keeping Unit): unique identifier that relates to specific Merchant product information, unit and price per unit
 
-The core of the product is an API that intakes data points such as:
+The core of the product is an Ingest API that intakes usage events such as:
 ```
 {
-  merchant_id: uuid,
   customer_id: uuid,
   sku_id: uuid,
   amount: float64,
   sent_at: timestamp,
 }
 ```
-and stores them in a database.
+and stores them in a database. The merchant is identified by the API key used to authenticate the request.
+
+# Architecture
+
+BillBo runs two backend servers:
+
+- **Dashboard API** (port 8080): Serves the frontend dashboard. Merchants sign up, log in (JWT cookies), view their events, and manage API keys.
+- **Ingest API** (port 9876): External-facing API for ingesting usage events. Merchants authenticate with API keys (`Authorization: Bearer bb_...`). Keys are created via the dashboard and stored as SHA-256 hashes.
 
 # Technical stack
 

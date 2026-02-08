@@ -76,3 +76,24 @@ export function makeApiPost<
     return (text ? JSON.parse(text) : undefined) as O;
   };
 }
+
+// O = output, P = path params
+export function makeApiDelete<
+  O = void,
+  P extends Record<string, string> | undefined = undefined,
+>(apiPath: `/${string}`) {
+  return async function apiCaller(
+    params: P extends undefined ? { path?: undefined } : { path: P },
+  ): Promise<O> {
+    const url = formatApiUrl(apiPath, params);
+    const response = await fetch(url, {
+      method: "DELETE",
+      credentials: "include",
+    });
+    if (!response.ok) {
+      throw new Error(`DELETE ${apiPath} failed: ${response.status}`);
+    }
+    const text = await response.text();
+    return (text ? JSON.parse(text) : undefined) as O;
+  };
+}
