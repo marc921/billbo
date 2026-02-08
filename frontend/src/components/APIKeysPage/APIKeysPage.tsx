@@ -1,7 +1,13 @@
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { apiKeysApi, type CreateAPIKeyResponse } from "@/api/apiKeys";
+import { type ColumnDef } from "@tanstack/react-table";
+import {
+  apiKeysApi,
+  type APIKey,
+  type CreateAPIKeyResponse,
+} from "@/api/apiKeys";
 import { useListAPIKeys } from "@/queries/useListAPIKeys";
+import { DataTable } from "@/components/DataTable";
 
 export function APIKeysPage() {
   const { data: keys, isPending, error } = useListAPIKeys();
@@ -41,7 +47,10 @@ export function APIKeysPage() {
     <div className="p-6">
       <h1 className="text-2xl font-semibold mb-4">API Keys</h1>
 
-      <form onSubmit={handleCreate} className="flex flex-row items-end gap-3 mb-6">
+      <form
+        onSubmit={handleCreate}
+        className="flex flex-row items-end gap-3 mb-6"
+      >
         <label className="flex flex-col gap-1">
           <span className="text-sm font-medium text-gray-700">Key name</span>
           <input
@@ -81,56 +90,66 @@ export function APIKeysPage() {
 
       {isPending && <p className="text-gray-500">Loading API keys...</p>}
       {error && (
-        <p className="text-red-600">
-          Failed to load API keys: {error.message}
-        </p>
+        <p className="text-red-600">Failed to load API keys: {error.message}</p>
       )}
       {keys && keys.length === 0 && (
         <p className="text-gray-500">No API keys yet.</p>
       )}
       {keys && keys.length > 0 && (
-        <table className="w-full text-sm text-left border-collapse">
-          <thead>
-            <tr className="border-b border-gray-200 text-gray-500">
-              <th className="py-2 pr-4 font-medium">Name</th>
-              <th className="py-2 pr-4 font-medium">Key</th>
-              <th className="py-2 pr-4 font-medium">Created</th>
-              <th className="py-2 pr-4 font-medium">Status</th>
-              <th className="py-2 font-medium"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {keys.map((key) => (
-              <tr key={key.ID} className="border-b border-gray-100">
-                <td className="py-2 pr-4">{key.Name}</td>
-                <td className="py-2 pr-4 font-mono text-xs">
-                  {key.KeyPrefix}...
-                </td>
-                <td className="py-2 pr-4">
-                  {new Date(key.CreatedAt).toLocaleDateString()}
-                </td>
-                <td className="py-2 pr-4">
-                  {key.RevokedAt ? (
+        <DataTable
+          data={keys}
+          columns={
+            [
+              {
+                accessorKey: "Name",
+                header: "Name",
+              },
+              {
+                accessorKey: "KeyPrefix",
+                header: "Key",
+                cell: (info) => (
+                  <span className="font-mono text-xs">
+                    {info.getValue<string>()}...
+                  </span>
+                ),
+              },
+              {
+                accessorKey: "CreatedAt",
+                header: "Created",
+                cell: (info) =>
+                  new Date(info.getValue<string>()).toLocaleString(),
+              },
+              {
+                accessorKey: "RevokedAt",
+                header: "Status",
+                cell: (info) =>
+                  info.getValue<string | null>() ? (
                     <span className="text-red-600">Revoked</span>
                   ) : (
                     <span className="text-green-600">Active</span>
-                  )}
-                </td>
-                <td className="py-2">
-                  {!key.RevokedAt && (
+                  ),
+              },
+              {
+                id: "actions",
+                header: "",
+                enableSorting: false,
+                enableGlobalFilter: false,
+                cell: ({ row }) =>
+                  !row.original.RevokedAt && (
                     <button
-                      onClick={() => handleRevoke(key.ID)}
-                      disabled={revokingID === key.ID}
+                      onClick={() => handleRevoke(row.original.ID)}
+                      disabled={revokingID === row.original.ID}
                       className="text-sm text-red-600 hover:underline disabled:opacity-50"
                     >
-                      {revokingID === key.ID ? "Revoking..." : "Revoke"}
+                      {revokingID === row.original.ID
+                        ? "Revoking..."
+                        : "Revoke"}
                     </button>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                  ),
+              },
+            ] satisfies ColumnDef<APIKey, unknown>[]
+          }
+        />
       )}
     </div>
   );

@@ -35,34 +35,23 @@ function AppRoutes() {
 
   return (
     <Routes>
-      <Route
-        path={appRoutes.login.path}
-        element={
-          isAuthenticated ? (
-            <Navigate to="/" replace />
-          ) : (
-            appRoutes.login.element
-          )
-        }
-      />
-      <Route
-        path={appRoutes.signup.path}
-        element={
-          isAuthenticated ? (
-            <Navigate to="/" replace />
-          ) : (
-            appRoutes.signup.element
-          )
-        }
-      />
-      <Route
-        path={appRoutes.home.path}
-        element={<RequireAuth>{appRoutes.home.element}</RequireAuth>}
-      />
-      <Route
-        path={appRoutes.apiKeys.path}
-        element={<RequireAuth>{appRoutes.apiKeys.element}</RequireAuth>}
-      />
+      {Object.entries(appRoutes).map(([key, route]) => (
+        <Route
+          key={key}
+          path={route.path}
+          element={
+            "public" in route && route.public ? (
+              isAuthenticated ? (
+                <Navigate to="/" replace />
+              ) : (
+                route.element
+              )
+            ) : (
+              <RequireAuth>{route.element}</RequireAuth>
+            )
+          }
+        />
+      ))}
     </Routes>
   );
 }

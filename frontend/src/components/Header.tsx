@@ -13,6 +13,9 @@ export function Header() {
         <Link to="/" className="text-sm font-semibold text-white hover:text-blue-100 border border-white rounded-md px-3 py-1">
           Home
         </Link>
+        <Link to="/events" className="text-sm font-semibold text-white hover:text-blue-100 border border-white rounded-md px-3 py-1">
+          Events
+        </Link>
         <Link to="/api-keys" className="text-sm font-semibold text-white hover:text-blue-100 border border-white rounded-md px-3 py-1">
           API Keys
         </Link>

@@ -4,7 +4,8 @@
       "Bash(mage *)",
       "Bash(go get:*)",
       "Bash(go build:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(npm install:*)"
     ]
   }
 }
